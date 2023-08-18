@@ -15,15 +15,17 @@ library(tidyverse)
 library(ggwordcloud)
 library(wordcloud)
 
-find.count <- function(df, column){ #this functions creates a ggplot object and extracts the counts which are normally plotte don the y-variable
-  plot <- ggplot(df, aes(x = column)) + geom_bar()
-  plot.layer <- layer_data(plot, i = 1L) #extract info from the ggplot object
-  plot.count <- plot.layer$count #gives the count from the ggplot layer
-  return(plot.count)
+
+unpack.df <- function(df, df.col){unpackt <- (df %>%
+       rowwise() |>
+       mutate(
+         field =
+           list(as.character(!!sym(df.col)))) |>
+       unnest_longer(!!sym(df.col)))
+        unpackt.w.count <- unpackt %>% group_by(!!sym(df.col)) %>% add_count() #adds counts for the relevant column
+return(unpackt.w.count)
 }
 
-#counts <- find.count(datasets.df, "fields.disease")
-#counts
 
 #size limits the search to the first n hits. Otherwise, only 15 first are included
 # URL for the fields available in PRIDE: https://www.ebi.ac.uk/ebisearch/metadata.ebi?db=pride
@@ -56,29 +58,31 @@ datasets.df$fields.publication_date <- format(as.Date(datasets.df$fields.publica
 
 #datasets.df$fields.labhead_affiliation
 #datasets.df %>% 
-  #mutate(affiliation_shortened = if(grepl("Bergen", datasets.df$fields.labhead_affiliation)) "UiB") %>%
-  #fill(affiliation_shortened) %>%
+  #mutate(affiliation = if(grepl("Bergen", datasets.df$fields.labhead_affiliation)) "UiB") %>%
+  #fill(affiliation) %>%
   #as.data.frame()
 
 #lapply(datasets.df$fields.labhead_affiliation, function(x) if(identical(x, character(0))) "missing" else x)
 
-datasets.df$affiliation_shortened <- "other" # All institutiions which do not below to the lines below will be binned under the same label
+datasets.df$fields.affiliation <- "other" # All institutiions which do not below to the lines below will be binned under the same label
                                              # Institution names are written in free-form, so the below text mining is necessary to group the affiliations properly
                                              # Below we are mining both the affiliation and the e-mail fields
 
 
-datasets.df$affiliation_shortened <- ifelse(grepl("Science and Technology", as.character(datasets.df$fields.labhead_affiliation), ignore.case =  T), "NTNU", datasets.df$affiliation_shortened)
-datasets.df$affiliation_shortened <- ifelse(grepl("Bergen", datasets.df$fields.labhead_affiliation, ignore.case = T)|grepl("PROBE", datasets.df$fields.labhead_affiliation)|grepl("UiB", datasets.df$fields.labhead_affiliation), "UiB", datasets.df$affiliation_shortened)
-datasets.df$affiliation_shortened <- ifelse(grepl("uib", datasets.df$fields.labhead_mail, ignore.case =  T), "UiB", datasets.df$affiliation_shortened)
-datasets.df$affiliation_shortened <- ifelse(grepl("Oslo", datasets.df$fields.labhead_affiliation), "UiO", datasets.df$affiliation_shortened)
-datasets.df$affiliation_shortened <- ifelse(grepl("uio", datasets.df$fields.labhead_mail), "UiO", datasets.df$affiliation_shortened)
-datasets.df$affiliation_shortened <- ifelse(grepl("Tuula", datasets.df$fields.labhead_mail, ignore.case = T), "UiO", datasets.df$affiliation_shortened)
-datasets.df$affiliation_shortened <- ifelse(grepl("UiT", datasets.df$fields.labhead_affiliation, ignore.case = T)|grepl("Troms", datasets.df$fields.labhead_affiliation, ignore.case = T), "UiT", datasets.df$affiliation_shortened)
-datasets.df$affiliation_shortened <- ifelse(grepl("uit", datasets.df$fields.labhead_mail), "UiT", datasets.df$affiliation_shortened)
-datasets.df$affiliation_shortened <- ifelse(grepl("Life Sciences", datasets.df$fields.labhead_affiliation, ignore.case = T)|grepl("NMBU", datasets.df$fields.labhead_affiliation, ignore.case = T), "NMBU", datasets.df$affiliation_shortened)
-datasets.df$affiliation_shortened <- ifelse(grepl("Nord university", datasets.df$fields.labhead_affiliation, ignore.case =  T), "NORD", datasets.df$affiliation_shortened)
-datasets.df$affiliation_shortened <- ifelse(grepl("UiS", datasets.df$fields.labhead_affiliation, ignore.case =  T)|grepl("Stavanger", datasets.df$fields.labhead_affiliation, ignore.case =  T), "UiS", datasets.df$affiliation_shortened)
+datasets.df$fields.affiliation <- ifelse(grepl("Science and Technology", as.character(datasets.df$fields.labhead_affiliation), ignore.case =  T), "NTNU", datasets.df$fields.affiliation)
+datasets.df$fields.affiliation <- ifelse(grepl("Bergen", datasets.df$fields.labhead_affiliation, ignore.case = T)|grepl("PROBE", datasets.df$fields.labhead_affiliation)|grepl("UiB", datasets.df$fields.labhead_affiliation), "UiB", datasets.df$fields.affiliation)
+datasets.df$fields.affiliation <- ifelse(grepl("uib", datasets.df$fields.labhead_mail, ignore.case =  T), "UiB", datasets.df$fields.affiliation)
+datasets.df$fields.affiliation <- ifelse(grepl("Oslo", datasets.df$fields.labhead_affiliation), "UiO", datasets.df$fields.affiliation)
+datasets.df$fields.affiliation <- ifelse(grepl("uio", datasets.df$fields.labhead_mail), "UiO", datasets.df$fields.affiliation)
+datasets.df$fields.affiliation <- ifelse(grepl("Tuula", datasets.df$fields.labhead_mail, ignore.case = T), "UiO", datasets.df$fields.affiliation)
+datasets.df$fields.affiliation <- ifelse(grepl("UiT", datasets.df$fields.labhead_affiliation, ignore.case = T)|grepl("Troms", datasets.df$fields.labhead_affiliation, ignore.case = T), "UiT", datasets.df$fields.affiliation)
+datasets.df$fields.affiliation <- ifelse(grepl("uit", datasets.df$fields.labhead_mail), "UiT", datasets.df$fields.affiliation)
+datasets.df$fields.affiliation <- ifelse(grepl("Life Sciences", datasets.df$fields.labhead_affiliation, ignore.case = T)|grepl("NMBU", datasets.df$fields.labhead_affiliation, ignore.case = T), "NMBU", datasets.df$fields.affiliation)
+datasets.df$fields.affiliation <- ifelse(grepl("Nord university", datasets.df$fields.labhead_affiliation, ignore.case =  T), "NORD", datasets.df$fields.affiliation)
+datasets.df$fields.affiliation <- ifelse(grepl("UiS", datasets.df$fields.labhead_affiliation, ignore.case =  T)|grepl("Stavanger", datasets.df$fields.labhead_affiliation, ignore.case =  T), "UiS", datasets.df$fields.affiliation)
 
+
+df.unpackt <- unpack.df(datasets.df, "fields.disease")
 
 
 ##dataframes below are for debugging
@@ -95,7 +99,7 @@ datasets.df$affiliation_shortened <- ifelse(grepl("UiS", datasets.df$fields.labh
 #test_plot
 ### Below are some ggplots for debugging purposes
 
-#x_value = "affiliation_shortened"
+#x_value = "fields.affiliation"
 ##df.unpackt <- datasets.df %>% separate_longer_delim(!!sym(x_value), delim = ",")
 #df.unpackt <- bind_rows(datasets.df$entries) %>%
   #unnest(!!sym(x_value))
@@ -159,7 +163,7 @@ ui <- fluidPage(
       selectInput("variable", "Variable:",
                   c("Submission date" = "fields.submission_date", 
                     "Publication date" = "fields.publication_date",
-                    "Affiliation" = "affiliation_shortened",
+                    "Affiliation" = "fields.affiliation",
                     "Species" = "fields.species",
                     "Disease" = "fields.disease",
                     "Tissue" = "fields.tissue",
@@ -168,7 +172,8 @@ ui <- fluidPage(
                     "Keywords" = "fields.submitter_keywords",
                     "Omics" = "fields.omics_type"
                     )),
-      uiOutput("numeric")  #This renders the slider input for some plots
+      uiOutput("numeric"),  #This renders the slider input for some plots,
+      downloadButton('downloadPlot')
       
     ),
     
@@ -194,7 +199,9 @@ server <- function(input, output) { #shiny passes selectInput as a string. To us
   # This is in a reactive expression since it is shared by the
   # output$caption and output$ebi.plot functions
   formulaText <- reactive({
-    paste("after_stat(count) ~", input$variable)
+    paste(str_to_title( #Capitalize first words
+    sub("_", " ", #replace underscores with spaces
+      substring(input$variable, 8, nchar(input$variable)))))
   })
   
   # Return the formula text for printing as a caption ----
@@ -207,9 +214,12 @@ server <- function(input, output) { #shiny passes selectInput as a string. To us
   output$numeric <- renderUI({
     if(!(input$variable %in% exceptions)) { #if the input is NOT among the exceptions, render the min+max input options
       #find.count(datasets.df)
+      df.unpackt <- unpack.df(datasets.df, input$variable)
+      max.count <- max(df.unpackt$n)
+      
       list( # for the inputs below to be succesfully rendered inside an if-statement, we need to wrap them inside a list
-      numericInput(inputId = "min","Exclude entries with counts lower than", 1),
-      numericInput(inputId = "max","Exclude entries with counts higher than", 1)
+      numericInput(inputId = "min","Exclude entries with counts >=", 0),
+      numericInput(inputId = "max","Exclude entries with counts <=", max.count)
       )
     }
   }
@@ -217,43 +227,50 @@ server <- function(input, output) { #shiny passes selectInput as a string. To us
   )
 
   # Generate a plot of the requested variable against count ----
-
-  output$ebi.plot <- renderPlot({ #The fields below are sorted chronologically, not after count5
-    #counts <- find.count(datasets.df, input$variable)
-    #print(counts)
+  bar_plot.reactive <- reactive({
     if(input$variable %in% exceptions
     ){order_bars <- FALSE
-      min_value <- 1
-      }
+    }
     else{
       order_bars <- TRUE
-      min_value <- input$min 
+      min_value <- input$min
+      max_value <- input$max
     }
-    #datasets.tibble <- as.tibble(datasets.df)
-    if(class(datasets.df[[input$variable]])=="list"){
-      df.unpackt <- (unpack <- datasets.df %>%
-                       rowwise() |>
-                       mutate(
-                         fields.species =
-                           list(as.character(!!sym(input$variable)))) |>
-                       unnest_longer(!!sym(input$variable)))
-      plot.df <- df.unpackt
+    if(!(input$variable %in% exceptions)){
+      df.unpackt <- unpack.df(datasets.df, input$variable)
+      plot.df <- df.unpackt %>% group_by(!!sym(input$variable)) %>% filter(n() >= min_value) %>% filter(n() <= max_value)
     }
     else{
       plot.df <- datasets.df
     }
-    ggplot(plot.df  %>% group_by(!!sym(input$variable))
-           %>% filter(n() > min_value),
-           aes( fill = affiliation_shortened, #!!sym() converts character to variable
-      if(order_bars == TRUE) {x = fct_rev(fct_infreq(!!sym(input$variable)))} #sort bars after count, lowest to highest
-      else {x = !!sym(input$variable)} #sort chronologically
-      ))+ #input$variable is a string, !!sym() converts them into symbols
+    
+    ggplot(plot.df,
+                      aes( fill = fields.affiliation, #!!sym() converts character to variable
+                           if(order_bars == TRUE) {x = fct_rev(fct_infreq(!!sym(input$variable)))} #sort bars after count, lowest to highest
+                           else {x = !!sym(input$variable)} #sort chronologically
+                      ))+ #input$variable is a string, !!sym() converts them into symbols
       geom_bar(position = "stack") + #fill-component in aes needs to be declared here, because it is not compatible with aes_string ##this is probably not necessary after all with the impl of !!sym(), but we will keep it to make it easier to read
       theme_classic() + #remove gridline
       theme(axis.text.x = element_text(angle = -45)) +
       scale_fill_brewer(palette = "Paired")
-      #theme(legend.position = "none") # No legend
+    #theme(legend.position = "none") # No legend
   })
+  
+  output$ebi.plot <- renderPlot(
+    { #The fields below are sorted chronologically, not after count5
+    bar_plot.reactive()
+  }
+  )
+  output$downloadPlot <- downloadHandler(
+    filename <- function()
+    {paste0("PRIDE-plot-",input$variable,".png")},
+    content <- function(file){
+      png(file=file)
+      plot(bar_plot.reactive())
+      dev.off()
+    }
+  )
+    
   
 }
 shinyApp(ui, server)
