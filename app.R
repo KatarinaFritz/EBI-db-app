@@ -1,30 +1,36 @@
 # Goal: Fetch info from Norwegian submissions in PRIDE
 # Plot them in ggplot
-# Shiny
-# June 2023, Illimar Rekand (illimar.rekand@uib.no)
-# ELIXIR Bergen, UiB
-# To run the Shiny app, use runApp("EBI-db-app-local") in the console in dir where the EBI-db-app-local folder is located
+# Create Shiny-applications
+# June 2023, Illimar Rekand (illimar.rekand@uib.no, illimar.rekand@gmail.com)
+# ELIXIR Bergen, Department of Informatics, University of Bergen
 
-#library(httr)
 library(jsonlite)
 library(dplyr)
 library(ggplot2)
 library(shiny)
 library(tidyverse)
-
 library(ggwordcloud)
-library(wordcloud)
 
+################################################################################################################
+################################################ Functions #####################################################
+################################################################################################################
 
-unpack.df <- function(df, df.col){unpackt <- (df %>%
+unpack.df <- function(df, df.col){ # This function unpacks the lists inside a given column, and creates a single new row for each unpacked element, maintaining the id-field
+  unpackt <- (df %>% 
        rowwise() |>
        mutate(
          field =
            list(as.character(!!sym(df.col)))) |>
        unnest_longer(!!sym(df.col)))
-        unpackt.w.count <- unpackt %>% group_by(!!sym(df.col)) %>% add_count() #adds counts for the relevant column
+        unpackt.w.count <- unpackt %>% group_by(!!sym(df.col)) %>% add_count() #adds counts for the relevant column #!!sym() converts character to variable
 return(unpackt.w.count)
 }
+
+################################################################################################################
+################################################ Extracting data ###############################################
+################################################################################################################
+
+
 
 
 #size limits the search to the first n hits. Otherwise, only 15 first are included
@@ -35,15 +41,17 @@ query = "https://www.ebi.ac.uk/ebisearch/ws/rest/pride?query=submitter_country:N
 # Sometimes the command below crashes. giving a CacheKey error. If this happens, restart R session (ctrl+shift+F10)
 datasets.raw <- fromJSON(query, flatten = TRUE, simplifyDataFrame = TRUE)
 
-#datasets.df <- do.call(rbind, datasets.raw) #convert to dataframe
 datasets.df <- datasets.raw$entries
 datasets.df
 
+################################################################################################################
+################################################ Cleanup #######################################################
+################################################################################################################
 
-class(datasets.df)
-dim(datasets.df)
 
 
+
+#we extract only the years from the dates below, to make plotting later on easier.
 #convert to character first, because conversion directly to date does not work....
 datasets.df$fields.submission_date <- as.character(datasets.df$fields.submission_date)
 datasets.df$fields.submission_date <- format(as.Date(datasets.df$fields.submission_date, format = "%Y%m%d"), "%Y")
@@ -51,23 +59,10 @@ datasets.df$fields.submission_date <- format(as.Date(datasets.df$fields.submissi
 datasets.df$fields.publication_date <- as.character(datasets.df$fields.publication_date)
 datasets.df$fields.publication_date <- format(as.Date(datasets.df$fields.publication_date, format = "%Y%m%d"), "%Y")
 
-#datasets.df$fields.labhead_affiliation <- as.character(datasets.df$fields.labhead_affiliation)
-#datasets.df$fields.labhead_mail  <- as.character(datasets.df$fields.labhead_mail)
-#datasets.df$fields.species  <- as.character(datasets.df$fields.species)
-#datasets.df$fields.disease  <- as.character(datasets.df$fields.disease)
-
-#datasets.df$fields.labhead_affiliation
-#datasets.df %>% 
-  #mutate(affiliation = if(grepl("Bergen", datasets.df$fields.labhead_affiliation)) "UiB") %>%
-  #fill(affiliation) %>%
-  #as.data.frame()
-
-#lapply(datasets.df$fields.labhead_affiliation, function(x) if(identical(x, character(0))) "missing" else x)
 
 datasets.df$fields.affiliation <- "other" # All institutiions which do not below to the lines below will be binned under the same label
                                              # Institution names are written in free-form, so the below text mining is necessary to group the affiliations properly
                                              # Below we are mining both the affiliation and the e-mail fields
-
 
 datasets.df$fields.affiliation <- ifelse(grepl("Science and Technology", as.character(datasets.df$fields.labhead_affiliation), ignore.case =  T), "NTNU", datasets.df$fields.affiliation)
 datasets.df$fields.affiliation <- ifelse(grepl("Bergen", datasets.df$fields.labhead_affiliation, ignore.case = T)|grepl("PROBE", datasets.df$fields.labhead_affiliation)|grepl("UiB", datasets.df$fields.labhead_affiliation), "UiB", datasets.df$fields.affiliation)
@@ -81,67 +76,123 @@ datasets.df$fields.affiliation <- ifelse(grepl("Life Sciences", datasets.df$fiel
 datasets.df$fields.affiliation <- ifelse(grepl("Nord university", datasets.df$fields.labhead_affiliation, ignore.case =  T), "NORD", datasets.df$fields.affiliation)
 datasets.df$fields.affiliation <- ifelse(grepl("UiS", datasets.df$fields.labhead_affiliation, ignore.case =  T)|grepl("Stavanger", datasets.df$fields.labhead_affiliation, ignore.case =  T), "UiS", datasets.df$fields.affiliation)
 
-
-df.unpackt <- unpack.df(datasets.df, "fields.disease")
-
-
-##dataframes below are for debugging
-
-
-#filtered <- datasets.df %>% group_by(fields.species) %>% filter(n() > 5)
-#x_value = "fields.publication_date"
-#test_plot <- ggplot(datasets.df, aes(!!sym(x_value)))+ #as.factor harmonizes the color-palette with fill function of the graph
-  #geom_bar(aes()) + 
-  #theme_classic() + 
- #scale_fill_manual(values = pal) +
-  ##coord_flip() +
-  #theme(legend.position = "none")
-#test_plot
-### Below are some ggplots for debugging purposes
-
-#x_value = "fields.affiliation"
-##df.unpackt <- datasets.df %>% separate_longer_delim(!!sym(x_value), delim = ",")
-#df.unpackt <- bind_rows(datasets.df$entries) %>%
-  #unnest(!!sym(x_value))
-#df.unpackt[[x_value]]
-#dim(df.unpackt)
-#min_value = 0
-#order_bars <- FALSE
-
-#test_plot_2 <- ggplot(df.unpackt  %>% group_by(!!sym(x_value)) %>% filter(n() > min_value), aes( #!!sym() converts character to variable
-  #if(order_bars == TRUE) {x = fct_rev(fct_infreq(!!sym(x_value)))} 
-  #else {x = !!sym(x_value)}
-#))+ #input$variable is a string, !!sym() converts them into symbols
-  #geom_bar(aes(fill = as.factor(after_stat(count)))) + #fill-component in aes needs to be declared here, because it is not compatible with aes_string ##this is probably not necessary after all with the impl of !!sym(), but we will keep it to make it easier to read
-  #theme_classic() + #remove gridline +
-  #theme(axis.text.x = element_text(angle = -45)) +
-  #scale_fill_manual(values = pal) + #enables the custom palette from wes_palette
-  #theme(legend.position = "none") # No legend
-#test_plot_2
-
-##ggplot(datasets.df, aes(x= fields.publication_date)) + geom_bar() + theme_classic()
-
-#x_value = "fields.tissue"
-#y_value = "fields.species"
-#heatmap_test <- ggplot(datasets.unpackt %>% group_by(!!sym(x_value)) %>% filter(n() > 0), 
-                       #aes(y = !!sym(y_value), x = as.character(!!sym(x_value)), fill = as.factor(after_stat(count)))
-                       #) + 
-  #geom_bin2d() +
-  #theme_classic() +
-  #scale_fill_manual(values = wes_palette("Zissou1", n = 8, type = "continuous"))
-
-#-------------------
+################################################################################################################
+################################################ Wordcloud #####################################################
+################################################################################################################
 
 
 
-wordcloud <- ggplot(datasets.unpackt, aes(label = unique(fields.submitter_keywords))) +
+unpack.df.keywords <- unpack.df(datasets.df, "fields.submitter_keywords") #unpacks all the nested keywords
+unpack.df.keywords.unique <- unpack.df.keywords %>% distinct(fields.submitter_keywords) #removes redudancy
+
+wordcloud <- ggplot(unpack.df.keywords.unique, aes(label = fields.submitter_keywords)) +
                     geom_text_wordcloud() +
                     theme_minimal()
 
 
-#wordcloud
-#--------------------------
 
+wordcloud
+
+################################################################################################################
+################################################ Lollipop-plots ################################################
+################################################################################################################
+
+ui <- fluidPage(
+  
+  # App title ----
+  titlePanel("Choose input below"),
+  
+  # Sidebar layout with input and output definitions ----
+  sidebarLayout(
+    
+    # Sidebar panel for inputs ----
+    sidebarPanel(
+      
+      # Input: Selector for variable to plot against count ----
+      # The below variables will be output as character strings
+      selectInput("variable", "Variable:",
+                  c("View count" = "fields.view_count" #currently only one input selectable, other countables have missing data
+                  )),
+      downloadButton('downloadPlot')
+      
+    ),
+    
+    # Main panel for displaying outputs ----
+    mainPanel(
+      
+      # Output: Formatted text for caption ----
+      h3(textOutput("caption")),
+      
+      # Output: Plot of the requested variable against count ----
+      plotOutput("ebi.plot")
+      
+      
+    )
+  )
+)
+
+server <- function(input, output) { #shiny passes selectInput as a string. To use these variables for subsetting dataframes, use e.g. df$!!sym(input$variable) or df[[input$variable]]
+  
+  formulaText <- reactive({
+    paste("Entries to the PRIDE database from Norwegian institutions")
+  })
+  
+  # Return the formula text for printing as a caption ----
+  output$caption <- renderText({
+    formulaText()
+  })
+  
+  # Render slider input for certain plots
+  
+  
+  # Generate a plot of the requested variable against count ----
+  bar_plot.reactive <- reactive({
+    df.unpackt <- unpack.df(datasets.df, input$variable) #unpacks the lists
+    df.unpackt[[input$variable]] <- as.numeric(df.unpackt[[input$variable]]) #convert from char to numeric
+    plot.df <- df.unpackt
+    ggplot(plot.df, #sort bars after count, lowest to highest
+           aes(reorder(x = id, !!sym(input$variable)), y = !!sym(input$variable)))+ #input$variable is a string, !!sym() converts them into symbols
+      geom_point() + #fill-component in aes needs to be declared here, because it is not compatible with aes_string ##this is probably not necessary after all with the impl of !!sym(), but we will keep it to make it easier to read
+      geom_segment( aes(x=id, xend=id, y=0, yend=!!sym(input$variable))) +
+      ylab(paste(str_to_title( #Capitalize first words
+        sub("_", " ", #replace underscores with spaces
+            substring(input$variable, 8, nchar(input$variable)))))) +
+      xlab("PRIDE entry ID") +
+      theme_classic() + #remove gridline
+      theme(axis.text.x = element_text(angle = -45)) +
+      scale_fill_brewer(palette = "Paired")
+    #theme(legend.position = "none") # No legend
+  })
+  
+  output$ebi.plot <- renderPlot(
+    { #The fields below are sorted chronologically, not after count5
+      bar_plot.reactive()
+    }
+  )
+  
+  
+  output$downloadPlot <- downloadHandler(
+    filename <- function()
+    {paste0("PRIDE-plot-",input$variable,".png")},
+    content <- function(file){
+      png(file=file)
+      plot(bar_plot.reactive())
+      dev.off()
+    }
+  )
+  
+  
+}
+
+shinyApp(ui, server)
+
+
+################################################################################################################
+################################################ Barplots ######################################################
+################################################################################################################
+
+#below, most variables will be sorted after frequency. The exceptions (dates) are added to a list
+exceptions <- c("fields.publication_date", "fields.submission_date") #these bar_plots will be ordered in chronological order, not after count
 
 
 ## Barplots
@@ -149,7 +200,7 @@ wordcloud <- ggplot(datasets.unpackt, aes(label = unique(fields.submitter_keywor
 ui <- fluidPage(
   
   # App title ----
-  titlePanel("Number of datasets per year"),
+  titlePanel("Choose input below"),
   
   # Sidebar layout with input and output definitions ----
   sidebarLayout(
@@ -190,7 +241,6 @@ ui <- fluidPage(
   )
 )
 
-exceptions <- c("fields.publication_date", "fields.submission_date") #these bar_plots will be ordered in chronological order, not after count
 
 # Define server logic to plot various variables against count ----
 server <- function(input, output) { #shiny passes selectInput as a string. To use these variables for subsetting dataframes, use e.g. df$!!sym(input$variable) or df[[input$variable]]
@@ -199,9 +249,7 @@ server <- function(input, output) { #shiny passes selectInput as a string. To us
   # This is in a reactive expression since it is shared by the
   # output$caption and output$ebi.plot functions
   formulaText <- reactive({
-    paste(str_to_title( #Capitalize first words
-    sub("_", " ", #replace underscores with spaces
-      substring(input$variable, 8, nchar(input$variable)))))
+    paste("Entries to the PRIDE database from Norwegian institutions")
   })
   
   # Return the formula text for printing as a caption ----
@@ -245,11 +293,14 @@ server <- function(input, output) { #shiny passes selectInput as a string. To us
     }
     
     ggplot(plot.df,
-                      aes( fill = fields.affiliation, #!!sym() converts character to variable
+                      aes( fill = fields.affiliation, 
                            if(order_bars == TRUE) {x = fct_rev(fct_infreq(!!sym(input$variable)))} #sort bars after count, lowest to highest
                            else {x = !!sym(input$variable)} #sort chronologically
                       ))+ #input$variable is a string, !!sym() converts them into symbols
       geom_bar(position = "stack") + #fill-component in aes needs to be declared here, because it is not compatible with aes_string ##this is probably not necessary after all with the impl of !!sym(), but we will keep it to make it easier to read
+      xlab(paste(str_to_title( #Capitalize first words
+        sub("_", " ", #replace underscores with spaces
+            substring(input$variable, 8, nchar(input$variable)))))) +
       theme_classic() + #remove gridline
       theme(axis.text.x = element_text(angle = -45)) +
       scale_fill_brewer(palette = "Paired")
@@ -276,7 +327,25 @@ server <- function(input, output) { #shiny passes selectInput as a string. To us
 shinyApp(ui, server)
 
 
+################################################################################################################
+################################################ Heatmaps ######################################################
+################################################################################################################
+
+
 ## heatmaps
+
+field.list <- c("Submission date" = "fields.submission_date", 
+                "Publication date" = "fields.publication_date",
+                "Affiliation" = "fields.affiliation",
+                "Species" = "fields.species",
+                "Disease" = "fields.disease",
+                "Tissue" = "fields.tissue",
+                "Instrument" = "fields.instrument_platform",
+                "Modifications" = "fields.modification",
+                "Keywords" = "fields.submitter_keywords",
+                "Omics" = "fields.omics_type"
+)
+
 ui <- fluidPage(
   
   # App title ----
@@ -291,21 +360,9 @@ ui <- fluidPage(
       # Input: Selector for variable to plot against count ----
       # The below variables will be output as character strings
       selectInput("xvar", "X Variable:",
-                  c("Tissue" = "fields.tissue",
-                    "Species" = "fields.species",
-                    "Technology Type" = "fields.technology_type",
-                    "Instrument" = "fields.instrument_platform",
-                    "Disease" = "fields.disease",
-                    "Keywords" = "fields.submitter_keywords"
-                  )),
+                  field.list),
       selectInput("yvar", "Y Variable:",
-                  c("Species" = "fields.species", 
-                    "Tissue" = "fields.tissue",
-                    "Technology Type" = "fields.technology_type",
-                    "Instrument" = "fields.instrument_platform",
-                    "Disease" = "fields.disease",
-                    "Keywords" = "fields.submitter_keywords"
-                  )),
+                  field.list),
       
       
     ),
@@ -317,14 +374,13 @@ ui <- fluidPage(
       h3(textOutput("caption")),
       
       # Output: Plot of the requested variable against count ----
-      plotOutput("ebi.plot")
+      plotOutput("ebi.plot"),
       
     )
   )
 )
 # Create Shiny app ----
 
-shinyApp(ui, server)
 
 
 server <- function(input, output) {
@@ -333,17 +389,18 @@ server <- function(input, output) {
   # Generate a plot of the requested variable against count ----
   
   output$ebi.plot <- renderPlot({
-      heatmap <- ggplot(datasets.unpackt %>% group_by(!!sym(input$xvar)) %>% filter(n() > 0), 
-                             aes(y = !!sym(input$yvar), x = as.character(!!sym(input$xvar)), fill = as.factor(after_stat(count)))
+    datasets.df
+      heatmap <- ggplot(datasets.df, 
+                             aes(y = as.character(!!sym(input$yvar)), x = as.character(!!sym(input$xvar)), fill = as.factor(after_stat(count)))
                             ) + 
                             geom_bin2d() +
                             theme_classic()
-      heatmap.layer <- layer_data(heatmap, i = 1L) #extract info from the ggplot object
-      n_colors  <- length(unique(heatmap.layer$count)) #computes the number of colors which will be used, based on the count
-      heatmap + scale_fill_manual(values = wes_palette("Zissou1", n = n_colors, type = "continuous")) 
+      heatmap
   })
   
 }
 
 # Create Shiny app ----
 shinyApp(ui, server)
+
+
