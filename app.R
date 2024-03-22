@@ -55,6 +55,8 @@ datasets.df
 #convert to character first, because conversion directly to date does not work....
 datasets.df$fields.submission_date <- as.character(datasets.df$fields.submission_date)
 datasets.df$fields.submission_date <- format(as.Date(datasets.df$fields.submission_date, format = "%Y%m%d"), "%Y")
+excluded_years <- c(2013, 2014, 2015, 2016, 2017, 2018)
+datasets.df <- datasets.df[!(datasets.df$fields.submission_date %in% excluded_years), ]
 
 datasets.df$fields.publication_date <- as.character(datasets.df$fields.publication_date)
 datasets.df$fields.publication_date <- format(as.Date(datasets.df$fields.publication_date, format = "%Y%m%d"), "%Y")
@@ -73,6 +75,7 @@ datasets.df$fields.affiliation <- ifelse(grepl("Tuula", datasets.df$fields.labhe
 datasets.df$fields.affiliation <- ifelse(grepl("UiT", datasets.df$fields.labhead_affiliation, ignore.case = T)|grepl("Troms", datasets.df$fields.labhead_affiliation, ignore.case = T), "UiT", datasets.df$fields.affiliation)
 datasets.df$fields.affiliation <- ifelse(grepl("uit", datasets.df$fields.labhead_mail), "UiT", datasets.df$fields.affiliation)
 datasets.df$fields.affiliation <- ifelse(grepl("Life Sciences", datasets.df$fields.labhead_affiliation, ignore.case = T)|grepl("NMBU", datasets.df$fields.labhead_affiliation, ignore.case = T), "NMBU", datasets.df$fields.affiliation)
+
 
 
 ################################################################################################################
