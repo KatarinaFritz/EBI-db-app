@@ -60,7 +60,7 @@ datasets.df$fields.publication_date <- as.character(datasets.df$fields.publicati
 datasets.df$fields.publication_date <- format(as.Date(datasets.df$fields.publication_date, format = "%Y%m%d"), "%Y")
 
 
-datasets.df$fields.affiliation <- "other" # All institutiions which do not below to the lines below will be binned under the same label
+datasets.df$fields.affiliation <- "notNAPI" # All institutiions which do not below to the lines below will be binned under the same label
                                              # Institution names are written in free-form, so the below text mining is necessary to group the affiliations properly
                                              # Below we are mining both the affiliation and the e-mail fields
 
@@ -73,8 +73,6 @@ datasets.df$fields.affiliation <- ifelse(grepl("Tuula", datasets.df$fields.labhe
 datasets.df$fields.affiliation <- ifelse(grepl("UiT", datasets.df$fields.labhead_affiliation, ignore.case = T)|grepl("Troms", datasets.df$fields.labhead_affiliation, ignore.case = T), "UiT", datasets.df$fields.affiliation)
 datasets.df$fields.affiliation <- ifelse(grepl("uit", datasets.df$fields.labhead_mail), "UiT", datasets.df$fields.affiliation)
 datasets.df$fields.affiliation <- ifelse(grepl("Life Sciences", datasets.df$fields.labhead_affiliation, ignore.case = T)|grepl("NMBU", datasets.df$fields.labhead_affiliation, ignore.case = T), "NMBU", datasets.df$fields.affiliation)
-datasets.df$fields.affiliation <- ifelse(grepl("Nord university", datasets.df$fields.labhead_affiliation, ignore.case =  T), "NORD", datasets.df$fields.affiliation)
-datasets.df$fields.affiliation <- ifelse(grepl("UiS", datasets.df$fields.labhead_affiliation, ignore.case =  T)|grepl("Stavanger", datasets.df$fields.labhead_affiliation, ignore.case =  T), "UiS", datasets.df$fields.affiliation)
 
 ################################################################################################################
 ################################################ Wordcloud #####################################################
@@ -402,5 +400,3 @@ server <- function(input, output) {
 
 # Create Shiny app ----
 shinyApp(ui, server)
-
-#Test
