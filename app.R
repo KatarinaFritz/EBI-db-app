@@ -139,7 +139,7 @@ server <- function(input, output) { #shiny passes selectInput as a string. To us
   # This is in a reactive expression since it is shared by the
   # output$caption and output$ebi.plot functions
   formulaText <- reactive({
-    paste("Entries to the PRIDE database from Norwegian institutions")
+    paste("Entries to the PRIDE database from NAPI partners since 2019")
   })
   
   # Return the formula text for printing as a caption ----
