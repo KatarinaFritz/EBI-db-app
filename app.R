@@ -112,7 +112,6 @@ ui <- fluidPage(
                     "Instrument" = "fields.instrument_platform",
                     "Modifications" = "fields.modification",
                     "Keywords" = "fields.submitter_keywords",
-                    "Omics" = "fields.omics_type"
                     )),
       uiOutput("numeric"),  #This renders the slider input for some plots,
       downloadButton('downloadPlot')
